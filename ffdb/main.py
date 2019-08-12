@@ -7,53 +7,9 @@ from os.path import basename
 from ffdb.ffindex import FFDB
 from ffdb.ffindex import IndexRow
 from ffdb.seq import Seq
+from ffdb.seq import Seqs
 from ffdb.id_generator import IdConverter
 from ffdb.cli import cli
-
-
-def filter_duplicates(seqs, id_conv=None):
-    # Seen maps checksums to ids
-    seen = dict()
-
-    for record in seqs:
-        checksum = record.checksum()
-        id_line = {"original_id": record.id, "checksum": checksum}
-
-        if checksum in seen:
-            id_line["id"] = seen[checksum]
-            yield None, id_line
-            continue
-
-        if id_conv is None:
-            id_line["id"] = record.id
-        else:
-            id_line["id"] = next(id_conv)
-
-        record.id = id_line["id"]
-        record.desc = None
-        seen[checksum] = id_line["id"]
-        yield record, id_line
-    return
-
-
-def filter_length(seqs, length):
-    for seq in seqs:
-        if len(seq) >= length:
-            yield seq
-    return
-
-
-def dedup_fasta(seqs, out_mapping_handle):
-    id_conv = IdConverter(prefix="FF", length=6)
-
-    for record, id_line in filter_duplicates(seqs, id_conv=id_conv):
-        out_mapping_handle.write(
-            "{}\t{}\n".format(id_line["id"], id_line["old_id"])
-        )
-        if record is not None:
-            yield record
-
-    return
 
 
 def simplename(path):
@@ -94,16 +50,24 @@ def from_fasta(args):
     chunk_name = None
     chunk_size = 1
 
-    seqs = Seq.parse_many(args.fasta)
-    fseqs = filter_length(seqs, args.min_length)
+    id_conv = IdConverter(prefix="FF", length=6)
 
-    # Dedup_fasta writes to the mapping file directly
+    seqs = Seqs.parse_many(args.fasta)
+    seqs = seqs.min_length(args.min_length)
+
+    if args.max_length is not None:
+        seqs = seqs.max_length(args.max_length)
+
+    if args.strip:
+        seqs = seqs.map(lambda x: x.rstrip("*"))
+
+    if not args.no_upper:
+        seqs = seqs.map(lambda x: x.upper())
+
     if args.checksum is not None:
-        iterator = dedup_fasta(fseqs, args.checksum)
-    else:
-        iterator = fseqs
+        seqs = seqs.deduplicated(lambda x: next(id_conv))
 
-    for record in iterator:
+    for record in seqs:
         chunk_data.extend(str(record).encode())
 
         # Handles first case after write, or just first case.
@@ -120,6 +84,9 @@ def from_fasta(args):
         outdb.data.append(chunk_data)
         outdb.index.append(index)
 
+        if args.checksum is not None:
+            seqs.flush_ids(args.checksum)
+
         chunk_data = bytearray()
         chunk_name = None
         chunk_size = 1
@@ -131,6 +98,9 @@ def from_fasta(args):
         outdb.data.append(chunk_data)
         outdb.index.append(index)
 
+    if args.checksum is not None:
+        seqs.flush_ids(args.checksum)
+
     outdb.index.write_to(args.index)
     return
 
@@ -141,6 +111,90 @@ def collect(args):
     for (data, index) in zip(args.ffdata, args.ffindex):
         db = FFDB.from_file(data, index)
         db.collect_into(outfile, args.trim)
+    return
+
+
+class ReplaceIdKeyError(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+        return
+
+
+class InvalidOptionError(Exception):
+
+    def __init__(self, msg):
+        self.msg = msg
+        return
+
+
+def read_mapping(infile):
+    d = dict()
+    for line in infile:
+        sline = line.strip().split("\t")
+        d[sline[0]] = sline[1]
+    return d
+
+
+def get_id(id_map, id):
+    if id in id_map:
+        return id_map[id]
+    else:
+        raise ReplaceIdKeyError(f"Id {id} is not in the map file.")
+
+
+def replace_ids(args):
+    id_map = read_mapping(args.map)
+
+    if args.format == "fasta":
+        seqs = Seqs.parse(args.infile)
+
+        if args.column == 1:
+            seqs = map(
+                lambda s: Seq(get_id(id_map, s.id), s.desc, s.seq),
+                seqs
+            )
+        elif args.column == 2:
+            seqs = map(
+                lambda s: Seq(s.id, get_id(id_map, s.desc), s.seq),
+                seqs
+            )
+        else:
+            raise InvalidOptionError(
+                f"Column {args.column} is not valid for fasta format.")
+
+        for seq in seqs:
+            args.outfile.write(str(seq))
+
+    elif args.format in ("csv", "tsv"):
+        if args.column < 1:
+            raise InvalidOptionError("Column selection is 1-based.")
+
+        if args.format == "csv":
+            sep = ","
+        else:
+            sep = "\t"
+
+        if args.header:
+            header = next(args.infile)
+            print(header, file=args.outfile)
+
+        column = args.column - 1
+        for line in args.infile:
+            if line.startswith("#"):
+                print(line, file=args.outfile)
+
+            sline = line.strip().split(sep)
+            try:
+                sline[column] = get_id(id_map, sline[column])
+            except IndexError:
+                raise InvalidOptionError(
+                    f"Encountered line with fewer than {args.column} columns.")
+
+            print(sep.join(sline), file=args.outfile)
+    else:
+        print(args.format)
+        raise ValueError("this shouldn't ever happen")
     return
 
 
@@ -156,8 +210,16 @@ def main():
             from_fasta(args)
         elif args.subparser_name == "collect":
             collect(args)
+        elif args.subparser_name == "replaceids":
+            replace_ids(args)
         else:
             raise ValueError("I shouldn't reach this point ever")
+    except ReplaceIdKeyError as e:
+        print(f"Error: {e.msg}")
+        sys.exit(1)
+    except InvalidOptionError as e:
+        print(f"Error: {e.msg}")
+        sys.exit(1)
     except EnvironmentError as e:
         print((
             "Encountered a system error.\n"
@@ -178,4 +240,5 @@ def main():
             "authors.\nWe will be extremely grateful!\n\n"
         ), file=sys.stderr)
         raise e
+
     return

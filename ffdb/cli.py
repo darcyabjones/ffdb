@@ -1,5 +1,6 @@
 """ Argument parse for scripts. """
 
+import sys
 import argparse
 
 
@@ -44,6 +45,13 @@ def cli(prog, args):
 
     cli_collect(collect_subparser)
 
+    replace_ids_subparser = subparsers.add_parser(
+        "replaceids",
+        help="Replace ids in the file given a mapping file."
+    )
+
+    cli_replace_ids(replace_ids_subparser)
+
     parsed = parser.parse_args(args)
 
     # Validate arguments passed to combine
@@ -58,7 +66,6 @@ def cli(prog, args):
                 "ffdata files provided to `combine`."
             ))
 
-        print(files)
         parsed.ffdata = files[:len(files)//2]
         parsed.ffindex = files[len(files)//2:]
 
@@ -161,7 +168,28 @@ def cli_fasta(parser):
         "-l", "--min-length",
         type=int,
         default=0,
-        help="The minimum length of the sequence allowed"
+        help="The minimum length of the sequence allowed. Default 0"
+    )
+
+    parser.add_argument(
+        "-x", "--max-length",
+        type=int,
+        default=None,
+        help="The maximum length of the sequence allowed. Default +inf"
+    )
+
+    parser.add_argument(
+        "-s", "--strip",
+        default=False,
+        action="store_true",
+        help="Strip stop codons (*) from end of sequences."
+    )
+
+    parser.add_argument(
+        "-u", "--no-upper",
+        default=False,
+        action="store_true",
+        help="Don't convert characters to uppercase."
     )
 
     parser.add_argument(
@@ -209,6 +237,58 @@ def cli_split(parser):
         metavar="FFINDEX_FILE",
         type=argparse.FileType('rb'),
         help="The ffindex .ffindex files.",
+    )
+
+    return
+
+
+def cli_replace_ids(parser):
+    parser.add_argument(
+        "-m", "--map",
+        type=argparse.FileType("r"),
+        help="A file mapping ids to old ids.",
+    )
+
+    parser.add_argument(
+        "-f", "--format",
+        default="tsv",
+        choices=["csv", "tsv", "fasta"],
+        help="The format of the infile to parse.",
+    )
+
+    parser.add_argument(
+        "-c", "--column",
+        default=1,
+        type=int,
+        help=(
+            "Specify the 1-based column to substitute with the map. "
+            "If the file is a fasta, 1 is the id and 2 is the description. "
+            "Default 1."
+        )
+    )
+
+    parser.add_argument(
+        "--header",
+        default=False,
+        action="store_true",
+        help=(
+          "The first line is treated as a header. "
+          "Only respected for csv and tsv formats."
+        )
+    )
+
+    parser.add_argument(
+        "-o", "--outfile",
+        type=argparse.FileType("w"),
+        default=sys.stdout,
+        help="Write the output to a file rather than stdout.",
+    )
+
+    parser.add_argument(
+        "infile",
+        metavar="INFILE",
+        type=argparse.FileType("r"),
+        help="The file to replace ids in.",
     )
 
     return

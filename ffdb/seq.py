@@ -157,3 +157,80 @@ class Seq(object):
         from base64 import b64encode
         hash_ = sha1(self.seq).digest()
         return b64encode(hash_).rstrip(b"=").decode("utf-8")
+
+    def rstrip(self, chars):
+        self.seq = self.seq.rstrip(chars)
+        return self
+
+    def upper(self):
+        self.seq = self.seq.upper()
+        return self
+
+
+class Seqs(object):
+
+    def __init__(self, seqs):
+        self.seqs = seqs
+        return
+
+    @classmethod
+    def parse(cls, handle):
+        return cls(Seq.parse(handle))
+
+    @classmethod
+    def parse_many(cls, handles):
+        return cls(Seq.parse_many(handles))
+
+    def filter(self, function):
+        return self.__class__(s for s in self.seqs if function(s))
+
+    def map(self, function):
+        return self.__class__(function(s) for s in self.seqs)
+
+    def min_length(self, length):
+        return self.filter(lambda s: len(s) >= length)
+
+    def max_length(self, length):
+        return self.filter(lambda s: len(s) <= length)
+
+    def deduplicated(self, id_conv=lambda x: x):
+        return SeqDeduplicated(self.seqs, id_conv)
+
+    def __iter__(self):
+        return iter(self.seqs)
+
+    def __str__(self):
+        return "\n".join(self.seqs)
+
+
+class SeqDeduplicated(Seqs):
+
+    def __init__(self, seqs, id_conv=lambda x: x):
+        self.seen = dict()
+        self.id_map = list()
+        self.seqs = self._filter(seqs, id_conv)
+        return
+
+    def _filter(self, seqs, id_conv=None):
+        for record in seqs:
+            checksum = record.checksum()
+
+            if checksum in self.seen:
+                new_id = self.seen[checksum]
+                self.id_map.append((new_id, record.id))
+            else:
+                new_id = id_conv(record.id)
+                self.id_map.append((new_id, record.id))
+                self.seen[checksum] = new_id
+
+                record.id = new_id
+                record.desc = None
+                yield record
+        return
+
+    def flush_ids(self, handle):
+        for new_id, old_id in self.id_map:
+            handle.write(f"{new_id}\t{old_id}\n")
+
+        self.id_map = list()
+        return
