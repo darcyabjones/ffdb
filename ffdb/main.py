@@ -7,8 +7,53 @@ from os.path import basename
 from ffdb.ffindex import FFDB
 from ffdb.ffindex import IndexRow
 from ffdb.seq import Seq
-
+from ffdb.id_generator import IdConverter
 from ffdb.cli import cli
+
+
+def filter_duplicates(seqs, id_conv=None):
+    # Seen maps checksums to ids
+    seen = dict()
+
+    for record in seqs:
+        checksum = record.checksum()
+        id_line = {"original_id": record.id, "checksum": checksum}
+
+        if checksum in seen:
+            id_line["id"] = seen[checksum]
+            yield None, id_line
+            continue
+
+        if id_conv is None:
+            id_line["id"] = record.id
+        else:
+            id_line["id"] = next(id_conv)
+
+        record.id = id_line["id"]
+        record.desc = None
+        seen[checksum] = id_line["id"]
+        yield record, id_line
+    return
+
+
+def filter_length(seqs, length):
+    for seq in seqs:
+        if len(seq) >= length:
+            yield seq
+    return
+
+
+def dedup_fasta(seqs, out_mapping_handle):
+    id_conv = IdConverter(prefix="FF", length=6)
+
+    for record, id_line in filter_duplicates(seqs, id_conv=id_conv):
+        out_mapping_handle.write(
+            "{}\t{}\n".format(id_line["id"], id_line["old_id"])
+        )
+        if record is not None:
+            yield record
+
+    return
 
 
 def simplename(path):
@@ -45,40 +90,20 @@ def ffcombine(args):
 def from_fasta(args):
     outdb = FFDB.new(args.data)
 
-    if args.filter is not None:
-        filter_out = {
-            f.strip()
-            for f
-            in args.filter
-        }
-
-    seen = set()
-
     chunk_data = bytearray()
     chunk_name = None
     chunk_size = 1
 
-    for record in Seq.parse_many(args.fasta):
-        if args.checksum:
-            checksum = record.checksum()
+    seqs = Seq.parse_many(args.fasta)
+    fseqs = filter_length(seqs, args.min_length)
 
-            if args.filter:
-                if checksum in filter_out:
-                    continue
+    # Dedup_fasta writes to the mapping file directly
+    if args.checksum is not None:
+        iterator = dedup_fasta(fseqs, args.checksum)
+    else:
+        iterator = fseqs
 
-            print("{}\t{}".format(record.id, checksum), file=args.mapping)
-
-            if checksum in seen:
-                continue
-            else:
-                record.id = checksum
-                record.desc = None
-                seen.add(checksum)
-
-        elif args.filter:
-            if record.id in filter_out:
-                continue
-
+    for record in iterator:
         chunk_data.extend(str(record).encode())
 
         # Handles first case after write, or just first case.
@@ -115,24 +140,7 @@ def collect(args):
 
     for (data, index) in zip(args.ffdata, args.ffindex):
         db = FFDB.from_file(data, index)
-        for index in db.index:
-
-            # Take up to :-1 to strip the null byte
-            document = db.data[index][:-1]
-
-            if args.trim is not None:
-                sdocument = document.split(b'\n')[args.trim:]
-                if len(sdocument) == 0:
-                    continue
-                if sdocument[-1] != b'':
-                    # Adds a newline when we join.
-                    sdocument.append(b'')
-
-                outfile.write(b'\n'.join(sdocument))
-            else:
-                outfile.write(document)
-                if not document.endswith(b'\n'):
-                    outfile.write(b'\n')
+        db.collect_into(outfile, args.trim)
     return
 
 

@@ -37,7 +37,7 @@ def cli(prog, args):
 
     collect_subparser = subparsers.add_parser(
         "collect",
-        help=("Collects all ffdata documents into a single file."
+        help=("Collects all ffdata documents into a single file. "
               "Essentially it just filters out any null bytes and makes "
               "sure there is a newline between documents.")
     )
@@ -142,9 +142,12 @@ def cli_fasta(parser):
 
     parser.add_argument(
         "-c", "--checksum",
-        default=False,
-        action="store_true",
-        help="Replace the sequence ids with checksums and remove duplicates",
+        type=argparse.FileType('w'),
+        default=None,
+        help=(
+            "Remove duplicates sequences and write mapping of new ids to "
+            "original to file. Default: don't remove duplicates"
+        ),
     )
 
     parser.add_argument(
@@ -155,17 +158,10 @@ def cli_fasta(parser):
     )
 
     parser.add_argument(
-        "-f", "--filter",
-        type=argparse.FileType('r'),
-        default=None,
-        help="A newline delimited file of ids or checksums to filter with."
-    )
-
-    parser.add_argument(
-        "--mapping",
-        type=argparse.FileType('w'),
-        default=None,
-        help="Write the mapping of seqids to checksums to file.",
+        "-l", "--min-length",
+        type=int,
+        default=0,
+        help="The minimum length of the sequence allowed"
     )
 
     parser.add_argument(

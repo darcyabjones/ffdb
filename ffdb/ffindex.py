@@ -210,7 +210,44 @@ class FFDB(object):
             db.data.write_to(self.data.handle)
         return
 
+    def documents(self, trim=None):
+        """ Iterate over all documents in a db into a single file.
+
+        Optionally removing `trim` lines from the beginning of each
+        document.
+        """
+
+        for index in self.index:
+
+            # Take up to :-1 to strip the null byte
+            document = self.data[index][:-1]
+
+            if trim is not None:
+                sdocument = document.split(b'\n')[trim:]
+                if len(sdocument) == 0:
+                    continue
+
+                yield b'\n'.join(sdocument)
+            else:
+                yield document
+        return
+
+    def collect_into(self, outfile, trim=None):
+        """ Collect all documents from a db into a single file.
+
+        Optionally removing `trim` lines from the beginning of each
+        document.
+        """
+
+        for document in self.documents(trim=trim):
+            outfile.write(document)
+            if not document.endswith(b'\n'):
+                outfile.write(b'\n')
+        return
+
     def partition(self, name, template="{name}_{index}.{ext}", n=10000):
+        """ Chunk a database into partitions of size n """
+
         start_pos = 0
         pindices = []
         partition = 1
