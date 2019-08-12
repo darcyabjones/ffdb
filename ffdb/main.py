@@ -10,6 +10,8 @@ from ffdb.seq import Seq
 from ffdb.seq import Seqs
 from ffdb.id_generator import IdConverter
 from ffdb.cli import cli
+from ffdb.exceptions import FFKeyError
+from ffdb.exceptions import InvalidOptionError
 
 
 def simplename(path):
@@ -114,20 +116,6 @@ def collect(args):
     return
 
 
-class ReplaceIdKeyError(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-        return
-
-
-class InvalidOptionError(Exception):
-
-    def __init__(self, msg):
-        self.msg = msg
-        return
-
-
 def read_mapping(infile):
     d = dict()
     for line in infile:
@@ -140,7 +128,7 @@ def get_id(id_map, id):
     if id in id_map:
         return id_map[id]
     else:
-        raise ReplaceIdKeyError(f"Id {id} is not in the map file.")
+        raise FFKeyError(f"Id {id} is not in the map file.")
 
 
 def replace_ids(args):
@@ -193,8 +181,7 @@ def replace_ids(args):
 
             print(sep.join(sline), file=args.outfile)
     else:
-        print(args.format)
-        raise ValueError("this shouldn't ever happen")
+        raise ValueError("This shouldn't ever happen.")
     return
 
 
@@ -214,12 +201,12 @@ def main():
             replace_ids(args)
         else:
             raise ValueError("I shouldn't reach this point ever")
-    except ReplaceIdKeyError as e:
+    except FFKeyError as e:
         print(f"Error: {e.msg}")
-        sys.exit(1)
+        sys.exit(e.ecode)
     except InvalidOptionError as e:
         print(f"Error: {e.msg}")
-        sys.exit(1)
+        sys.exit(e.ecode)
     except EnvironmentError as e:
         print((
             "Encountered a system error.\n"
