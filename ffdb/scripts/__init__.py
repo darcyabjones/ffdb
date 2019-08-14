@@ -2,6 +2,11 @@ import sys
 import argparse
 
 from ffdb.exceptions import FFError
+from ffdb.scripts.split import cli_split, split
+from ffdb.scripts.combine import cli_combine, combine
+from ffdb.scripts.collect import cli_collect, collect
+from ffdb.scripts.fasta import cli_fasta, fasta
+
 
 def cli(prog, args):
 
@@ -73,11 +78,11 @@ def main():
 
     try:
         if args.subparser_name == "split":
-            ffsplit(args)
+            split(args)
         elif args.subparser_name == "combine":
-            ffcombine(args)
+            combine(args)
         elif args.subparser_name == "fasta":
-            from_fasta(args)
+            fasta(args)
         elif args.subparser_name == "collect":
             collect(args)
         else:

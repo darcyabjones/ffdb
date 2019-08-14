@@ -1,6 +1,6 @@
 import argparse
 
-from ffdb.seqs import Seq
+from ffdb.seq import Seq
 from ffdb.ffindex import FFDB, IndexRow
 
 
