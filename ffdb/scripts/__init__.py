@@ -12,7 +12,7 @@ def cli(prog, args):
 
     parser = argparse.ArgumentParser(
         prog=prog,
-        description=""
+        description="Scripts for manipulating ffindex databases."
     )
 
     subparsers = parser.add_subparsers(dest='subparser_name')
@@ -68,7 +68,7 @@ def cli(prog, args):
 
     elif parsed.subparser_name is None:
         parser.print_help()
-        sys.exit(1)
+        sys.exit(0)
 
     return parsed
 
