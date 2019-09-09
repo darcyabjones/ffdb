@@ -104,3 +104,24 @@ Collect can also take multiple databases using the same glob pattern as used in 
 ```
 ffdb collect many_gffs_*.{ffdata,ffindex} > out.gff3
 ```
+
+
+### `ffdb join_concat`
+
+Joins multiple ffindex databases, concatenating documents based on shared names in the index.
+It is a full outer join, meaning that documents in 1 but not 2 are included and those in 2 but not 1 are included.
+Can join multiple files at once.
+Documents are concatenated with a single newline separator.
+
+```
+ffdb join_concat \
+  -d joined.ffdata \
+  -i joined.ffindex \
+  msa.ffdata enriched_msa.ffdata \
+  msa.ffindex enriched_msa.ffindex
+```
+
+My primary use-case for this was for working with MMSeqs results, where I wanted to enrich a profile and get the full multiple sequence alignment (including the profile MSA).
+`mmseqs result2msa` only prints the consensus of the profile.
+
+Ordering for multiple databases is the same as for `ffdb combine`.

@@ -6,6 +6,7 @@ from ffdb.scripts.split import cli_split, split
 from ffdb.scripts.combine import cli_combine, combine
 from ffdb.scripts.collect import cli_collect, collect
 from ffdb.scripts.fasta import cli_fasta, fasta
+from ffdb.scripts.join_concat import cli_join_concat, join_concat
 
 
 def cli(prog, args):
@@ -49,10 +50,19 @@ def cli(prog, args):
 
     cli_collect(collect_subparser)
 
+    join_concat_subparser = subparsers.add_parser(
+        "join_concat",
+        help=("Collects all ffdata documents into a single file. "
+              "Essentially it just filters out any null bytes and makes "
+              "sure there is a newline between documents.")
+    )
+
+    cli_join_concat(join_concat_subparser)
+
     parsed = parser.parse_args(args)
 
     # Validate arguments passed to combine
-    if parsed.subparser_name in ("combine", "collect"):
+    if parsed.subparser_name in ("combine", "collect", "join_concat"):
         files = []
         files.extend(parsed.ffdata)
         files.extend(parsed.ffindex)
@@ -85,6 +95,8 @@ def main():
             fasta(args)
         elif args.subparser_name == "collect":
             collect(args)
+        elif args.subparser_name == "join_concat":
+            join_concat(args)
         else:
             raise ValueError("I shouldn't reach this point ever")
 
