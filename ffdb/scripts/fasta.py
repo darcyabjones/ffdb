@@ -47,7 +47,7 @@ def fasta(args):
     seqs = Seq.parse_many(args.fasta)
 
     for record in seqs:
-        chunk_data.extend(str(record).encode())
+        chunk_data.extend(str(record).encode() + b'\n')
 
         # Handles first case after write, or just first case.
         if chunk_name is None:
