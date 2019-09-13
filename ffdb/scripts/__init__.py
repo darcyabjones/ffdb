@@ -7,6 +7,7 @@ from ffdb.scripts.combine import cli_combine, combine
 from ffdb.scripts.collect import cli_collect, collect
 from ffdb.scripts.fasta import cli_fasta, fasta
 from ffdb.scripts.join_concat import cli_join_concat, join_concat
+from ffdb.scripts.order import cli_order, order
 
 
 def cli(prog, args):
@@ -59,6 +60,14 @@ def cli(prog, args):
 
     cli_join_concat(join_concat_subparser)
 
+    order_subparser = subparsers.add_parser(
+        "order",
+        help=("Sort an ffindex database by document size or by an external "
+              "file of ids.")
+    )
+
+    cli_order(order_subparser)
+
     parsed = parser.parse_args(args)
 
     # Validate arguments passed to combine
@@ -83,7 +92,7 @@ def cli(prog, args):
     return parsed
 
 
-def main():
+def main():  # noqa
     args = cli(prog=sys.argv[0], args=sys.argv[1:])
 
     try:
@@ -97,6 +106,8 @@ def main():
             collect(args)
         elif args.subparser_name == "join_concat":
             join_concat(args)
+        elif args.subparser_name == "order":
+            order(args)
         else:
             raise ValueError("I shouldn't reach this point ever")
 

@@ -1,12 +1,17 @@
 """ Simple fasta parser and utilities. """
 
-from collections.abc import Iterator
+from collections.abc import Iterator as ABCIterator
+
+from typing import Optional, Union, Any
+from typing import Sequence, List, Iterator
+from typing import Tuple
+
 from ffdb.exceptions import FastaHeaderError, EmptySequenceError
 
 
 class Seq(object):
 
-    def __init__(self, id, desc, seq):
+    def __init__(self, id: str, desc: Optional[str], seq: bytes):
         """ Construct a new Seq object.
 
         Keyword arguments:
@@ -15,25 +20,21 @@ class Seq(object):
         seq -- The biological sequence <bytes>.
 
         Examples:
-        >>> Seq("test", "description", "ATGCA")
+        >>> Seq("test", "description", b"ATGCA")
         Seq(id='test', desc='description', seq=b'ATGCA')
         """
 
         self.id = id
         self.desc = desc
 
-        # Seq should be bytes
-        if isinstance(seq, str):
-            seq = seq.encode()
-
         self.seq = seq
         return
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ Returns a FASTA string from the object.
 
         Examples:
-        >>> print(Seq("test", "description", "ATGCA".encode()))
+        >>> print(Seq("test", "description", b"ATGCA"))
         >test description
         ATGCA
         """
@@ -49,7 +50,26 @@ class Seq(object):
 
         return "\n".join(lines)
 
-    def __repr__(self):
+    def __bytes__(self) -> bytes:
+        """ Returns a FASTA bytestring from the object.
+
+        Examples:
+        >>> bytes(Seq("test", "description", b"ATGCA"))
+        b'>test description\\nATGCA'
+        """
+        line_length = 60
+
+        if self.desc is None:
+            lines = [">{}".format(self.id).encode("utf-8")]
+        else:
+            lines = [">{} {}".format(self.id, self.desc).encode("utf-8")]
+
+        for i in range(0, len(self), line_length):
+            lines.append(self.seq[i:i+line_length])
+
+        return b"\n".join(lines)
+
+    def __repr__(self) -> str:
         """ Returns a simple string representation of the object. """
 
         cls = self.__class__.__name__
@@ -59,7 +79,7 @@ class Seq(object):
 
         return f"{cls}(id={repr_id}, desc={repr_desc}, seq={repr_seq})"
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[int, slice]) -> "Seq":
         """ Allow us to access indices from the seq directly.
 
         Examples:
@@ -75,33 +95,30 @@ class Seq(object):
         seq = self.seq[key]
         return self.__class__(self.id, self.desc, seq)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         """ Allows us to compare two Seq objects directly using '==' .
         NB. python internally implements != based on this too.
 
         Examples:
         >>> seq = Seq("test", "description", "ATGCA".encode())
         >>> assert seq == Seq("test2", "description", "ATGCA".encode())
-        >>> assert seq == "ATGCA"
+        >>> assert seq == b"ATGCA"
         """
 
         if isinstance(other, self.__class__):
             return self.seq == other.seq
         elif isinstance(other, bytes):
             return self.seq == other
-        elif isinstance(other, str):
-            return self.seq == other.encode()
         else:
             raise ValueError((
                 "Equality comparisons not implemented between {} and {}."
                 ).format(type(self), type(other)))
-        return
 
-    def __len__(self):
+    def __len__(self) -> int:
         """ The length of a Seq object should be the length of the seq.
 
         Examples:
-        >>> seq = Seq("test", "description", "ATGCA")
+        >>> seq = Seq("test", "description", b"ATGCA")
         >>> len(seq)
         5
         """
@@ -109,7 +126,7 @@ class Seq(object):
         return len(self.seq)
 
     @classmethod
-    def read(cls, handle):
+    def read(cls, handle: Sequence[bytes]) -> "Seq":
         """ Read a single FASTA record.
 
         Parses a single FASTA record into a Seq object.
@@ -123,15 +140,17 @@ class Seq(object):
         A Seq object.
 
         Examples:
-        >>> fasta = [">test description", "ATGCA"]
+        >>> fasta = [b">test description", b"ATGCA"]
         >>> Seq.read(fasta)
         Seq(id='test', desc='description', seq=b'ATGCA')
         """
 
-        if not isinstance(handle, Iterator):
-            handle = iter(handle)
+        if isinstance(handle, ABCIterator):
+            ihandle = handle
+        else:
+            ihandle = iter(handle)
 
-        line = next(handle).strip()
+        line = next(ihandle).strip()
 
         try:
             id_, desc = cls._split_id_line(line)
@@ -142,7 +161,7 @@ class Seq(object):
             )
 
         # tuple comprehensions are generators so we're still doing lazy eval
-        seq = "".join((l.strip() for l in handle))
+        seq = b"".join((l.strip() for l in ihandle))
 
         if seq == "":
             raise EmptySequenceError(
@@ -150,10 +169,10 @@ class Seq(object):
                 f"This could be a truncated file or a non-standard format."
             )
 
-        return Seq(id_, desc, seq.encode())
+        return Seq(id_, desc, seq)
 
     @classmethod
-    def parse(cls, handle):
+    def parse(cls, handle: Sequence[bytes]) -> Iterator["Seq"]:
         """ Parse multiple fasta records.
 
         Parses a multi-fasta formatted file-like object.
@@ -166,10 +185,10 @@ class Seq(object):
 
         Examples:
         >>> fasta = [
-        ...     ">test1 description",
-        ...     "ATGCA",
-        ...     ">test2 descr",
-        ...     "TGACA",
+        ...     b">test1 description",
+        ...     b"ATGCA",
+        ...     b">test2 descr",
+        ...     b"TGACA",
         ... ]
         >>> seqs = Seq.parse(fasta)
         >>> next(seqs)
@@ -181,10 +200,10 @@ class Seq(object):
         # Store the initial state to avoid outputting empty record.
         first = True
         # Store lines for this block here.
-        current_record = []
+        current_record: List[bytes] = []
 
         for line in handle:
-            if line.startswith(">"):
+            if line.startswith(b">"):
                 if not first:
                     # Yield makes this function a generator.
                     # NB we reuse the read method to avoid repetition.
@@ -206,7 +225,7 @@ class Seq(object):
         return
 
     @classmethod
-    def parse_many(cls, handles):
+    def parse_many(cls, handles: Sequence[Sequence[bytes]]) -> Iterator["Seq"]:
         """ Parses many files yielding an iterator over all of them. """
 
         for handle in handles:
@@ -215,7 +234,7 @@ class Seq(object):
         return
 
     @staticmethod
-    def _split_id_line(line):
+    def _split_id_line(line: bytes) -> Tuple[str, Optional[str]]:
         """ Parse the FASTA header line into id and description components.
         NB expects the '>' character to be present at start of line.
 
@@ -226,24 +245,21 @@ class Seq(object):
         Tuple -- id and description strings.
 
         Examples:
-        >>> Seq._split_id_line(">one two")
+        >>> Seq._split_id_line(b">one two")
         ('one', 'two')
-        >>> Seq._split_id_line(">one ")
+        >>> Seq._split_id_line(b">one ")
         ('one', '')
-        >>> Seq._split_id_line(">one")
+        >>> Seq._split_id_line(b">one")
         ('one', None)
         """
 
-        if not line.startswith(">"):
+        if not line[:1] == b">":
             raise ValueError()
 
         # Strip the ">" character and split at most 1 time on spaces.
-        sline = line[1:].split(" ", 1)
+        sline = line[1:].decode("utf-8").split(" ", 1)
 
         if len(sline) == 1:
             return sline[0], None
         else:
             return sline[0], sline[1]
-
-        # We should never reach this point.
-        return

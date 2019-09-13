@@ -40,6 +40,10 @@ class EmptySequenceError(FFError):
     ecode = EXIT_CODES["DATAERR"]
 
 
+class FFOrderError(FFError):
+    ecode = EXIT_CODES["DATAERR"]
+
+
 class FFKeyError(FFError):
     ecode = 10
 

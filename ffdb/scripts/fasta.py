@@ -4,7 +4,7 @@ from ffdb.seq import Seq
 from ffdb.ffindex import FFDB, IndexRow
 
 
-def cli_fasta(parser):
+def cli_fasta(parser: argparse.ArgumentParser):
     parser.add_argument(
         "-d", "--data",
         required=True,
@@ -30,14 +30,17 @@ def cli_fasta(parser):
         "fasta",
         metavar="FASTA",
         nargs="+",
-        type=argparse.FileType('r'),
+        type=argparse.FileType('rb'),
         help="The fasta files to pull in.",
     )
 
     return
 
 
-def fasta(args):
+# TODO: add sort option
+
+
+def fasta(args: argparse.Namespace) -> None:
     outdb = FFDB.new(args.data)
 
     chunk_data = bytearray()
@@ -47,7 +50,7 @@ def fasta(args):
     seqs = Seq.parse_many(args.fasta)
 
     for record in seqs:
-        chunk_data.extend(str(record).encode() + b'\n')
+        chunk_data.extend(bytes(record) + b'\n')
 
         # Handles first case after write, or just first case.
         if chunk_name is None:
