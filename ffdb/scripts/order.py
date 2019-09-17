@@ -1,8 +1,8 @@
 import argparse
+import mmap
 
 from typing import Optional, List
 
-from ffdb.exceptions import FFOrderError
 from ffdb.ffindex import FFDB, IndexRow
 
 
@@ -32,56 +32,72 @@ def cli_order(parser: argparse.ArgumentParser):
         )
     )
 
+    # TODO add reverse option?
+
+    parser.add_argument(
+        "--mmap",
+        action="store_true",
+        default=False,
+        help=("Memory map the input hhdata file before reading chunks. "
+              "This will significantly reduce IO overhead when doing balanced "
+              "or sorted chunks, but requires enough memory to store the "
+              "entire ffdata file."),
+    )
+
     parser.add_argument(
         "ffdata",
         metavar="FFDATA_FILE",
-        type=argparse.FileType('rb'),
-        help="The ffindex .ffdata files.",
+        type=argparse.FileType('r+b'),
+        help="The ffindex .ffdata file.",
     )
 
     parser.add_argument(
         "ffindex",
         metavar="FFINDEX_FILE",
         type=argparse.FileType('rb'),
-        help="The ffindex .ffindex files.",
+        help="The ffindex .ffindex file.",
     )
 
     return
 
 
 def order(args: argparse.Namespace) -> None:
-    db = FFDB.from_file(args.ffdata, args.ffindex)
+    try:
+        if args.mmap:
+            mm: Optional[mmap.mmap] = mmap.mmap(args.ffdata.fileno(), 0)
+            db = FFDB.from_file(mm, args.ffindex)
+        else:
+            mm = None
+            db = FFDB.from_file(args.ffdata, args.ffindex)
 
-    if args.order is not None:
+        if args.order is not None:
 
-        # This lorder junk is just for the typechecker
-        lorder: List[IndexRow] = []
+            # This lorder junk is just for the typechecker
+            lorder: List[IndexRow] = []
 
-        for line in args.order:
-            sline = line.strip()
-            if len(sline) == 0:
-                continue
+            for line in args.order:
+                sline = line.strip()
+                if len(sline) == 0:
+                    continue
 
-            ir = db.index[sline]
-            assert isinstance(ir, IndexRow)
-            lorder.append(ir)
+                ir = db.index[sline]
+                assert isinstance(ir, IndexRow)
+                lorder.append(ir)
 
-        if len(lorder) != len(db.index):
-            raise FFOrderError((
-                "If an order file is provided, it must have the "
-                "same number of elements as the ffindex."
-            ))
+            torder: Optional[List[IndexRow]] = lorder
 
-        torder: Optional[List[IndexRow]] = lorder
+        else:
+            torder = None
 
-    else:
-        torder = None
+        outdb = FFDB.reorder_from(
+            other=db,
+            data_handle=args.data,
+            order=torder
+        )
 
-    outdb = FFDB.reorder_from(
-        other=db,
-        data_handle=args.data,
-        order=torder
-    )
+        outdb.index.write_to(args.index)
 
-    outdb.index.write_to(args.index)
+    finally:
+        if mm is not None:
+            mm.close()
     return

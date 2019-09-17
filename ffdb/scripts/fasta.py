@@ -37,9 +37,6 @@ def cli_fasta(parser: argparse.ArgumentParser):
     return
 
 
-# TODO: add sort option
-
-
 def fasta(args: argparse.Namespace) -> None:
     outdb = FFDB.new(args.data)
 

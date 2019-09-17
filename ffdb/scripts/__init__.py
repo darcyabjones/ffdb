@@ -8,6 +8,7 @@ from ffdb.scripts.collect import cli_collect, collect
 from ffdb.scripts.fasta import cli_fasta, fasta
 from ffdb.scripts.join_concat import cli_join_concat, join_concat
 from ffdb.scripts.order import cli_order, order
+from ffdb.scripts.select import cli_select, select
 
 
 def cli(prog, args):
@@ -68,6 +69,13 @@ def cli(prog, args):
 
     cli_order(order_subparser)
 
+    select_subparser = subparsers.add_parser(
+        "select",
+        help=("Select or filter documents from an ffindex database by name.")
+    )
+
+    cli_select(select_subparser)
+
     parsed = parser.parse_args(args)
 
     # Validate arguments passed to combine
@@ -108,6 +116,8 @@ def main():  # noqa
             join_concat(args)
         elif args.subparser_name == "order":
             order(args)
+        elif args.subparser_name == "select":
+            select(args)
         else:
             raise ValueError("I shouldn't reach this point ever")
 

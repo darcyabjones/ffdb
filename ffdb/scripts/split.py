@@ -87,8 +87,8 @@ def simplename(path: str) -> str:
 def split(args: argparse.Namespace) -> None:
     try:
         if args.mmap:
-            mm = mmap.mmap(args.ffdata.fileno(), 0)
-            ffdb = FFDB.from_file(args.ffdata, args.ffindex)
+            mm: Optional[mmap.mmap] = mmap.mmap(args.ffdata.fileno(), 0)
+            ffdb = FFDB.from_file(mm, args.ffindex)
         else:
             mm = None
             ffdb = FFDB.from_file(args.ffdata, args.ffindex)
