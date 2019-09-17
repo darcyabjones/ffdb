@@ -20,6 +20,13 @@ class IndexRow(NamedTuple):
 
     @classmethod
     def parse_ffindex_line(cls, line: bytes) -> "IndexRow":
+        """ Parse a line from a .ffindex file.
+
+        Examples:
+        >>> IndexRow.parse_ffindex_line(b"one\t0\t50")
+        IndexRow(name=b'one', start=0, size=50)
+        """
+
         name, start, size = line.strip().split()
         row = cls(
             name,
@@ -45,7 +52,7 @@ class IndexRow(NamedTuple):
 
 class FFIndex(object):
 
-    def __init__(self, index: Sequence[IndexRow] = None) -> None:
+    def __init__(self, index: Optional[Sequence[IndexRow]] = None) -> None:
         """ Construct an ffindex given a list of index rows. """
 
         if index is None:
