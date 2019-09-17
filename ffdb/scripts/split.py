@@ -1,5 +1,6 @@
 import argparse
 from os.path import basename, splitext
+import mmap
 
 from typing import Optional, List
 
@@ -53,9 +54,19 @@ def cli_split(parser: argparse.ArgumentParser):
     )
 
     parser.add_argument(
+        "--mmap",
+        action="store_true",
+        default=False,
+        help=("Memory map the input hhdata file before reading chunks. "
+              "This will significantly reduce IO overhead when doing balanced "
+              "or sorted chunks, but requires enough memory to store the "
+              "entire ffdata file."),
+    )
+
+    parser.add_argument(
         "ffdata",
         metavar="FFDATA_FILE",
-        type=argparse.FileType('rb'),
+        type=argparse.FileType('r+b'),
         help="The ffindex .ffdata files.",
     )
 
@@ -74,48 +85,57 @@ def simplename(path: str) -> str:
 
 
 def split(args: argparse.Namespace) -> None:
-    ffdb = FFDB.from_file(args.ffdata, args.ffindex)
+    try:
+        if args.mmap:
+            mm = mmap.mmap(args.ffdata.fileno(), 0)
+            ffdb = FFDB.from_file(args.ffdata, args.ffindex)
+        else:
+            mm = None
+            ffdb = FFDB.from_file(args.ffdata, args.ffindex)
 
-    file_basename = simplename(args.ffdata.name)
+        file_basename = simplename(args.ffdata.name)
 
-    if args.unbalanced and args.order is None:
-        ffdb.quick_partition(
-            name=file_basename,
-            template=args.basename,
-            n=args.size,
-        )
-
-    else:
-
-        if args.order is not None:
-
-            # This lorder junk is just for the typechecker
-            lorder: List[IndexRow] = []
-
-            for line in args.order:
-                sline = line.strip()
-                if len(sline) == 0:
-                    continue
-
-                ir = ffdb.index[sline]
-                assert isinstance(ir, IndexRow)
-                lorder.append(ir)
-
-            order: Optional[List[IndexRow]] = lorder
+        if args.unbalanced and args.order is None:
+            ffdb.quick_partition(
+                name=file_basename,
+                template=args.basename,
+                n=args.size,
+            )
 
         else:
-            order = None
 
-        if order is not None and len(order) != len(ffdb.index):
-            raise FFOrderError((
-                "When providing and order file, there should be the "
-                "same number of items as in the ffindex file."
-            ))
+            if args.order is not None:
 
-        ffdb.partition(
-            name=file_basename,
-            template=args.basename,
-            n=args.size,
-            order=order
-        )
+                # This lorder junk is just for the typechecker
+                lorder: List[IndexRow] = []
+
+                for line in args.order:
+                    sline = line.strip()
+                    if len(sline) == 0:
+                        continue
+
+                    ir = ffdb.index[sline]
+                    assert isinstance(ir, IndexRow)
+                    lorder.append(ir)
+
+                order: Optional[List[IndexRow]] = lorder
+
+            else:
+                order = None
+
+            if order is not None and len(order) != len(ffdb.index):
+                raise FFOrderError((
+                    "When providing and order file, there should be the "
+                    "same number of items as in the ffindex file."
+                ))
+
+            ffdb.partition(
+                name=file_basename,
+                template=args.basename,
+                n=args.size,
+                order=order
+            )
+    finally:
+        if mm is not None:
+            mm.close()
     return
