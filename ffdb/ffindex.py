@@ -1,5 +1,7 @@
 """ Classes for reading and writing ffindex databases. """
 
+from os.path import split as psplit
+from os import makedirs
 from copy import deepcopy
 from shutil import copyfileobj
 from io import BytesIO
@@ -421,6 +423,12 @@ class FFDB(object):
                 ext="ffdata"
             )
 
+            index_dirname = psplit(ffindex_name)[0]
+            makedirs(index_dirname, exist_ok=True)
+
+            data_dirname = psplit(ffdata_name)[0]
+            makedirs(data_dirname, exist_ok=True)
+
             with open(ffindex_name, "wb") as index_handle, \
                     open(ffdata_name, "wb") as data_handle:
 
@@ -497,6 +505,12 @@ class FFDB(object):
             index=partition,
             ext="ffdata"
         )
+
+        index_dirname = psplit(ffindex_name)[0]
+        makedirs(index_dirname, exist_ok=True)
+
+        data_dirname = psplit(ffdata_name)[0]
+        makedirs(data_dirname, exist_ok=True)
 
         partition_index = FFIndex(indices).bump_starts(by=(-1 * start))
 
