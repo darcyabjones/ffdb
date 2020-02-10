@@ -150,7 +150,12 @@ class Seq(object):
         else:
             ihandle = iter(handle)
 
-        line = next(ihandle).strip()
+        try:
+            line = next(ihandle).strip()
+        except StopIteration:
+            raise FastaHeaderError(
+                "The sequence that we're trying to parse was empty."
+            )
 
         try:
             id_, desc = cls._split_id_line(line)
@@ -221,7 +226,8 @@ class Seq(object):
 
         # The last sequence in the file won't have a ">" following it.
         # so we yield the last block too.
-        yield cls.read(current_record)
+        if len(current_record) > 0:
+            yield cls.read(current_record)
         return
 
     @classmethod
