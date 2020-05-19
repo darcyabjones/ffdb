@@ -29,6 +29,7 @@ setup(
 
     description='Utility scripts to work with ffindex databases files.',
     long_description=long_description,
+    long_description_content_type="text/markdown",
 
     # The project's main homepage.
     url='https://github.com/darcyabjones/ffdb',
