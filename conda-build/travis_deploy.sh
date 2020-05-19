@@ -11,9 +11,11 @@ conda config --set always_yes yes --set changeps1 no
 conda update -q conda
 
 conda install conda-build
+conda install anaconda-client
+conda config --set anaconda_upload no
 
 CONDA_OUTPUT=$(conda build --output-folder conda-build/build conda-build)
 CREATED_FILE=$(echo "${CONDA_OUTPUT}" | sed -n '/^anaconda upload/s/anaconda upload //p')
 echo "${CREATED_FILE}"
 
-anaconda -t "${ANACONDA_UPLOAD}" upload --all -d "test" --skip-existing "${CREATED_FILE}"
+anaconda -t "${ANACONDA_UPLOAD}" upload -u darcyabjones --all -d "test" --skip-existing "${CREATED_FILE}"
