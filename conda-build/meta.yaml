@@ -1,4 +1,4 @@
-{% set name = "ffdb" %}
+{% set name = "ffindexdb" %}
 {% set url = "https://github.com/darcyabjones/ffdb" %}
 {% set description = "Utilities for manipulating ffindex databases." %}
 
