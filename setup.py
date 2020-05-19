@@ -10,7 +10,10 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-here = path.abspath(path.dirname(__file__))
+from glob import glob
+from os.path import (basename, dirname, splitext)
+
+here = path.abspath(dirname(__file__))
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -52,6 +55,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
 
     # What does your project relate to?
@@ -59,10 +63,11 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=find_packages(),
+    packages=find_packages("src"),
+    package_dir={'': 'src'},
 
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
+    # setup_requires=['pytest-runner'],
+    # tests_require=['pytest'],
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's
@@ -70,6 +75,7 @@ setup(
     # https://packaging.python.org/en/latest/requirements.html
 
     install_requires=[],
+    py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
@@ -77,15 +83,15 @@ setup(
     # $ pip install -e .[dev,test]
     extras_require={
         'dev': ['check-manifest'],
-        'test': ['coverage', "pytest"],
+        'test': ['coverage', "mypy"],
     },
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
-    # package_data={
-    #     'catas': ['data/*.json', 'data/*.csv', 'data/*.npz'],
-    # },
+    package_data={
+        'ffdb': ['py.typed'],
+    },
     # include_package_data=True,
 
     # To provide executable scripts, use entry points in preference to the

@@ -1,7 +1,7 @@
 import argparse
 import mmap
 
-from typing import Set, Optional
+from typing import Set, Optional, cast, BinaryIO
 
 from ffdb.ffindex import FFDB, IndexRow
 from ffdb.exceptions import InvalidOptionError
@@ -98,7 +98,12 @@ def select(args: argparse.Namespace) -> None:
 
     try:
         if args.mmap:
-            mm: Optional[mmap.mmap] = mmap.mmap(args.ffdata.fileno(), 0)
+            mm: Optional[BinaryIO] = cast(
+                BinaryIO,
+                mmap.mmap(args.ffdata.fileno(), 0)
+            )
+            # This is for typechecker
+            assert mm is not None
             ffdb = FFDB.from_file(mm, args.ffindex)
         else:
             mm = None

@@ -1,0 +1,28 @@
+dist: bionic
+language: python
+python:
+- '3.7'
+- '3.8'
+
+before_install:
+- echo -e "machine github.com\n  login $GITHUB_TOKEN" > ~/.netrc
+
+install:
+- pip install ".[test]"
+
+script:
+- mypy --ignore-missing-imports src
+
+deploy:
+  - provider: pypi
+    user: "__token__"
+    password:
+      secure: Lpv/zhDF2P6Wlysx5bNnekq+yThfX/3yP75optdUPi3an8VuxNKvMIEx7cnWlAYnA7Z2tnStyUk066rTyTMfVg6tN/usaOShQjU58fYHV0ovj2vqN4Sv+jouHavaEUxM/BcX9ay2A+gbxOQtDZdkzW+ConNDW/PVzUHQ7wS42vTTaPYsot218uugZAPDKUrIsiPZOIV1xplhdGWCbUtXCcXUp1xJOftmojXp75HfvBIQa4MRvdSbQPDnGwUC2icRppXwz8sLZHNHr4gHvXPpe01pVmC4UtXmANEb04tset7nmk4E/EF7sWai6QzrB1o/2GVxpeTBpba8D/7BgB3ysyFYSS1kMXqYkWXKKg36umfPUd5wCWd/zU7KvIiIhfNJm2eFHx7ZcYAgCooZQq74JDH/ol4XPpYEGDKStYo0b7VvSFKF1/VPIA456yAvWUrw6REa9WH81TgDeSLP/JjKKWeiANzcvRirMfwd3zdnvzHoPL0Yy1i/10CNxFwoHm7VGNiYc1M6vTJOMUeIbrb4c4yyMA3Ym74mPSCciGr4aL22+zxI2Zqwlq2JggJ7VL9AoZsBOGtuO6ZWp6ZdcPNcZLp1lt3pY6wfIoX+iXQwavNLGAnvViQxVwaq53kdEVQ1zabck0j4Hqqrd4BUMeFPunXTs8/Dc/9vgKrI1BWdsXQ=
+    on:
+      tags: true
+    skip_existing: true
+  - provider: script
+    script: "bash conda-build/travis_deploy.sh"
+    on:
+      tags: true
+    skip_existing: true

@@ -1,8 +1,8 @@
 import argparse
 from os.path import basename, splitext
-import mmap
+from mmap import mmap
 
-from typing import Optional, List
+from typing import Optional, List, BinaryIO, cast
 
 from ffdb.exceptions import FFOrderError
 from ffdb.ffindex import FFDB, IndexRow
@@ -87,7 +87,12 @@ def simplename(path: str) -> str:
 def split(args: argparse.Namespace) -> None:
     try:
         if args.mmap:
-            mm: Optional[mmap.mmap] = mmap.mmap(args.ffdata.fileno(), 0)
+            mm: Optional[BinaryIO] = cast(
+                BinaryIO,
+                mmap(args.ffdata.fileno(), 0)
+            )
+            # I know this looks stupid, it's for mypy
+            assert mm is not None
             ffdb = FFDB.from_file(mm, args.ffindex)
         else:
             mm = None

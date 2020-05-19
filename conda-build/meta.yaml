@@ -1,0 +1,46 @@
+{% set name = "ffdb" %}
+{% set url = "https://github.com/darcyabjones/ffdb" %}
+{% set description = "Utilities for manipulating ffindex databases." %}
+
+{% set data = load_setup_py_data() %}
+
+package:
+  name: "{{ name | lower }}"
+  version: "{{ data['version'] }}"
+
+source:
+  path: "../"
+
+build:
+  noarch: python
+  entry_points:
+    - ffdb=ffdb.scripts:main
+  script: "{{ PYTHON }} setup.py install --single-version-externally-managed --record=record.txt"
+
+requirements:
+  host:
+    - python {{ python }}
+    - setuptools
+  run:
+    - python {{ python }}
+
+test:
+  imports:
+    - ffdb
+  commands:
+    - ffdb --help
+
+about:
+  home: "{{ url }}"
+  license: "Apache License 2.0"
+  license_family: APACHE
+  license_file: "LICENSE"
+  summary: "{{ description }}"
+  doc_url: "{{ url }}"
+  dev_url: "{{ url }}"
+
+extra:
+  maintainers:
+    - Darcy Jones <darcy.a.jones@postgrad.curtin.edu.au>
+  recipe-maintainers:
+    - darcyabjones

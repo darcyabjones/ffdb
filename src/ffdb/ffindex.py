@@ -306,7 +306,7 @@ class FFDB(object):
             length += self.append_from(data, key)
         return length
 
-    def append(self, data: bytes, key: bytes):
+    def append(self, data: bytes, key: bytes) -> int:
         if data[-1:] != b'\0':
             data = data + b'\0'
 
@@ -314,7 +314,7 @@ class FFDB(object):
         self.index.append(IndexRow(key, 0, len(data)))
         return len(data)
 
-    def extend(self, data: Sequence[bytes], keys: Sequence[bytes]):
+    def extend(self, data: Sequence[bytes], keys: Sequence[bytes]) -> int:
         assert len(data) == len(keys)
 
         length = 0

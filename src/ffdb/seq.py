@@ -1,9 +1,7 @@
 """ Simple fasta parser and utilities. """
 
-from collections.abc import Iterator as ABCIterator
-
 from typing import Optional, Union, Any
-from typing import Sequence, List, Iterator
+from typing import Sequence, List, Iterable, Iterator
 from typing import Tuple
 
 from ffdb.exceptions import FastaHeaderError, EmptySequenceError
@@ -126,7 +124,7 @@ class Seq(object):
         return len(self.seq)
 
     @classmethod
-    def read(cls, handle: Sequence[bytes]) -> "Seq":
+    def read(cls, handle: Iterable[bytes]) -> "Seq":
         """ Read a single FASTA record.
 
         Parses a single FASTA record into a Seq object.
@@ -145,10 +143,7 @@ class Seq(object):
         Seq(id='test', desc='description', seq=b'ATGCA')
         """
 
-        if isinstance(handle, ABCIterator):
-            ihandle = handle
-        else:
-            ihandle = iter(handle)
+        ihandle = iter(handle)
 
         try:
             line = next(ihandle).strip()
@@ -162,7 +157,7 @@ class Seq(object):
         except ValueError:
             raise FastaHeaderError(
                 "Encountered malformed fasta header. "
-                f"Offending line is: '{line}'"
+                f"Offending line is: '{line.decode()}'"
             )
 
         # tuple comprehensions are generators so we're still doing lazy eval
