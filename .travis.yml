@@ -10,7 +10,6 @@ install:
 script:
 - mypy --ignore-missing-imports src
 deploy:
-  matrix:
   - provider: pypi
     user: __token__
     password:
